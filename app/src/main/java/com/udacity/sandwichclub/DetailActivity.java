@@ -1,9 +1,13 @@
 package com.udacity.sandwichclub;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
+import android.util.AttributeSet;
 import android.util.Log;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -11,15 +15,25 @@ import android.widget.Toast;
 import com.squareup.picasso.Picasso;
 import com.udacity.sandwichclub.model.Sandwich;
 import com.udacity.sandwichclub.utils.JsonUtils;
+import com.udacity.sandwichclub.view.DetailActivityView;
+import com.udacity.sandwichclub.viewmodel.DetailActivityViewModel;
 
 import org.json.JSONException;
 
-public class DetailActivity extends AppCompatActivity {
+import java.util.List;
+
+public class DetailActivity extends AppCompatActivity implements DetailActivityView{
 
     private static final String TAG = DetailActivity.class.getSimpleName();
 
     public static final String EXTRA_POSITION = "extra_position";
     private static final int DEFAULT_POSITION = -1;
+    private TextView akaTv;
+    private TextView placeOfOriginTv;
+    private TextView descriptionTv;
+    private TextView ingrediantsTv;
+    private Sandwich sandwich;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,33 +41,20 @@ public class DetailActivity extends AppCompatActivity {
         setContentView(R.layout.activity_detail);
 
         ImageView ingredientsIv = findViewById(R.id.image_iv);
+        akaTv = findViewById(R.id.also_known_tv);
+        placeOfOriginTv = findViewById(R.id.origin_tv);
+        descriptionTv = findViewById(R.id.description_tv);
+        ingrediantsTv = findViewById(R.id.ingredients_tv);
 
-        Intent intent = getIntent();
-        if (intent == null) {
-            closeOnError();
-        }
+        getSandwich();
 
-        int position = intent.getIntExtra(EXTRA_POSITION, DEFAULT_POSITION);
-        if (position == DEFAULT_POSITION) {
-            // EXTRA_POSITION not found in intent
-            closeOnError();
-            return;
-        }
+        DetailActivityViewModel viewModel = new DetailActivityViewModel(this);
+        viewModel.isSandwichValid(sandwich);
 
-        String[] sandwiches = getResources().getStringArray(R.array.sandwich_details);
-        String json = sandwiches[position];
-        Sandwich sandwich;
-        try {
-            sandwich = JsonUtils.parseSandwichJson(json);
-        } catch (JSONException e) {
-            Log.e(TAG, e.getMessage());
-            closeOnError();
-            return;
-        }
-
-        populateUI(sandwich);
         Picasso.with(this)
                 .load(sandwich.getImage())
+                .error(R.mipmap.ic_launcher)
+                .placeholder(R.mipmap.ic_launcher)
                 .into(ingredientsIv);
 
         setTitle(sandwich.getMainName());
@@ -64,29 +65,69 @@ public class DetailActivity extends AppCompatActivity {
         Toast.makeText(this, R.string.detail_error_message, Toast.LENGTH_SHORT).show();
     }
 
-    private void populateUI(Sandwich sandwich) {
-        TextView aka = findViewById(R.id.also_known_tv);
-        TextView placeOfOrigin = findViewById(R.id.origin_tv);
-        TextView description = findViewById(R.id.description_tv);
-        TextView ingrediants = findViewById(R.id.ingredients_tv);
+    @Override
+    public void showAlsoKnownAs(List<String> otherNames) {
+        akaTv.setText(TextUtils.join(", ", otherNames));
+    }
 
-        StringBuilder akaBuilder = new StringBuilder();
+    @Override
+    public void noOtherNames() {
+        showNoDataMessage(akaTv);
+    }
 
-        for(String i : sandwich.getAlsoKnownAs()) {
-            akaBuilder.append(i);
+    @Override
+    public void showPlaceOfOrigin(String placeOfOrigin) {
+        placeOfOriginTv.setText(placeOfOrigin);
+    }
+
+    @Override
+    public void noPlaceOfOrigin() {
+        showNoDataMessage(placeOfOriginTv);
+    }
+
+    @Override
+    public void showDescription(String description) {
+        descriptionTv.setText(description);
+    }
+
+    @Override
+    public void noDescription() {
+        showNoDataMessage(descriptionTv);
+    }
+
+    @Override
+    public void showIngredients(List<String> ingredients) {
+        ingrediantsTv.setText(TextUtils.join(", ", ingredients));
+    }
+
+    @Override
+    public void noIngredients() {
+        showNoDataMessage(ingrediantsTv);
+    }
+
+    private void showNoDataMessage(TextView view){
+        view.setText(getString(R.string.no_data_message));
+    }
+
+    private void getSandwich(){
+        if(getIntent() != null) {
+            int position = getIntent().getIntExtra(EXTRA_POSITION, DEFAULT_POSITION);
+            if (position == DEFAULT_POSITION) {
+                // EXTRA_POSITION not found in intent
+                closeOnError();
+                return;
+            }
+
+            String[] sandwiches = getResources().getStringArray(R.array.sandwich_details);
+            String json = sandwiches[position];
+            try {
+                sandwich = JsonUtils.parseSandwichJson(json);
+            } catch (JSONException e) {
+                Log.e(TAG, e.getMessage());
+                closeOnError();
+            }
+        } else {
+            closeOnError();
         }
-
-        aka.setText(akaBuilder.toString());
-
-        placeOfOrigin.setText(sandwich.getPlaceOfOrigin());
-        description.setText(sandwich.getDescription());
-
-        StringBuilder ingredientBuilder = new StringBuilder();
-
-        for(String i : sandwich.getIngredients()) {
-            ingredientBuilder.append(i);
-        }
-
-        ingrediants.setText(ingredientBuilder.toString());
     }
 }
